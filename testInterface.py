@@ -1,6 +1,9 @@
 import os
+
 import cv2
 from interfaceTest import VideoDisplay
+from yolo_detect import yolo_process_frame
+
 
 video_path = os.path.join('.', 'data', 'test.MP4')
 video_out_path = os.path.join('.','outcome', 'test.mp4')
@@ -16,6 +19,8 @@ cap_out = cv2.VideoWriter(video_out_path, cv2.VideoWriter_fourcc(*'MP4V'), cap.g
 
 frame_interval = 1
 frame_count = 0
+words = ['summer', 'autumn', 'spring','winter']
+
 
 while ret:
     ret, frame = cap.read()
@@ -28,6 +33,9 @@ while ret:
 
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
+    tracker = yolo_process_frame(frame, words,frame_count)
+
+
     display.update_frame(frame)
 
     # cv2.imshow('Real-time Preview', frame)
@@ -39,6 +47,5 @@ while ret:
 cap.release()
 cap_out.release()
 cv2.destroyAllWindows()
-
 
 

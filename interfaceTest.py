@@ -2,6 +2,8 @@
 import pyglet
 from pyglet.window import key
 
+
+
 class VideoDisplay:
     def __init__(self, width=1560, height=800):
         self.width = width

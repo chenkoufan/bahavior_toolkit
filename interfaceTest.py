@@ -1,16 +1,13 @@
 # interface.py
-import cv2
 import pyglet
 from pyglet.window import key
 
 class VideoDisplay:
-    def __init__(self, video_path):
-        self.width, self.height = 1560, 800
+    def __init__(self, width=1560, height=800):
+        self.width = width
+        self.height = height
         self.window = pyglet.window.Window(self.width, self.height, caption='Video Display')
         self.window.set_location(200, 200)
-
-        # 使用 OpenCV 加载视频
-        self.cap = cv2.VideoCapture(video_path)
 
         # 全局变量来存储当前帧的图像数据
         self.current_image = None
@@ -19,15 +16,19 @@ class VideoDisplay:
         self.window.on_draw = self.on_draw
         self.window.on_key_press = self.on_key_press
 
-        # 每次更新画面的时间间隔
-        pyglet.clock.schedule_interval(self.update, 1/30.0)  # 设置为视频的帧率
+        # 不再需要自己加载视频和设置更新间隔
+        # pyglet.clock.schedule_interval(self.update, 1/30.0)
 
-    def update(self, dt):
-        ret, frame = self.cap.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    def update_frame(self, frame):
+        """ 更新当前帧图像数据 """
+        if frame is not None:
+            # 假设 frame 已经是 RGB 格式
             self.current_image = pyglet.image.ImageData(frame.shape[1], frame.shape[0],
                                                         'RGB', frame.tobytes(), pitch=-frame.shape[1]*3)
+            # 手动调用重绘窗口
+            self.window.dispatch_events()
+            self.window.dispatch_event('on_draw')
+            self.window.flip()
 
     def on_draw(self):
         self.window.clear()
@@ -44,4 +45,4 @@ class VideoDisplay:
         pyglet.app.run()
 
     def close(self):
-        self.cap.release()
+        pass  # 由外部控制资源释放

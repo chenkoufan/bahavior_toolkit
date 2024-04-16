@@ -120,8 +120,6 @@ class KApp:
                 f.render(self)
 
         imgui.render()
-
-
         
 
 if __name__ == '__main__':

@@ -18,10 +18,9 @@ class KWindow(pyglet.window.Window):
         self.imguiImpl = create_renderer(self)
         self.app = app
 
-
     def on_draw(self):
-        self.clear()
-        self.app.update()
+        self.clear() 
+        self.app.update() # spp is KApp, clear and update
         self.imguiImpl.render(imgui.get_draw_data())
         #self.flip()
 

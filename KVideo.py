@@ -17,12 +17,12 @@ class KVideoFrame:
     def __init__(self):
         super().__init__()
         self.time_stamp_sec = 0.0
-        self.image = None
+        self.frame_image = None
 
-        self.yolo_data : List[KYoloData]  = []
+        # self.yolo_data : List[KYoloData]  = [] # 之后可以用来存储yolo数据, store yolo data
 
 
-class KVideoClip:
+class KVideoNew:
     def __init__(self):
         super().__init__()
         self.start_time_sec = 0.0
@@ -50,15 +50,15 @@ class KVideo:
         self.file = file
         self.duration_sec = 0.
 
-    def get_clip(self, start_time_sec:float, end_time_sec:float, skip_frames:int=0) -> KVideoClip:
+    def get_video(self, start_time_sec:float, end_time_sec:float, skip_frames:int=0) -> KVideoNew: # 用这个得到截取片段
         
-        clip = KVideoClip()
-        clip.start_time_sec = start_time_sec
-        clip.end_time_sec = end_time_sec
+        new_video = KVideoNew() # 用来储存片段, get the new video
+        new_video.start_time_sec = start_time_sec
+        new_video.end_time_sec = end_time_sec
 
         #open video file
         cap = cv2.VideoCapture(self.file)
-        cap.set(cv2.CAP_PROP_POS_MSEC, start_time_sec * 1000)
+        cap.set(cv2.CAP_PROP_POS_MSEC, start_time_sec * 1000) # 设置开始时间, set the start time
         frame_count = 0
         while True:
             ret, frame = cap.read()
@@ -66,14 +66,13 @@ class KVideo:
                 break
             if frame_count % skip_frames == 0:
                 video_frame = KVideoFrame()
-                video_frame.image = frame
+                video_frame.frame_image = frame # frame储存到KVideoframe.image里, store the frame in KVideoframe.image
                 video_frame.time_stamp_sec = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-                clip.add_frame(video_frame)
+                new_video.add_frame(video_frame)
             frame_count += 1
             if video_frame.time_stamp_sec >= end_time_sec:
                 break
 
         cap.release()
 
-
-        return clip
+        return new_video # 是一个类,然后self.frames里面有很多frames,这些frame是用Class KVideoFrame储存的

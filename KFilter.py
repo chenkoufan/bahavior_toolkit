@@ -1,5 +1,3 @@
-
-
 from typing import List
 import pyglet
 from pyglet import gl
@@ -19,7 +17,7 @@ class KFilter:
 
     def update_ui(self, app:'KApp'):
         imgui.text(self.name)
-        changed, checked =  imgui.checkbox("Active", self.active)
+        changed, checked =  imgui.checkbox("Active", self.active) # checked就是有没有选中
         if changed:
             self.active = checked
             if self.active:
@@ -28,12 +26,13 @@ class KFilter:
                 self.on_deactivated()
     
     def on_activated(self):
-        print(f"{self.name} activated")
+        print("Filter activated")
 
     def on_deactivated(self):
-        print(f"{self.name} deactivated")
+        print("Filter deactivated")
 
-    def on_video_clip_changed(self, clip:KVideoClip):
+    def frame_change(self, clip:KVideoNew):
+        print("Video clip changed")
         pass
 
     def render(self, app:'KApp'):

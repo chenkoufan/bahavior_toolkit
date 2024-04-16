@@ -52,10 +52,15 @@ def yolo_process_frame(frame, words=['jacket']):
             
             # tracker.clip_datas[track_id] = clip_data # 更新数据,可以体现过程,而不是只有最后的结果,但是可视化时候不用这个,可以只用clip_data,但这个有必要吗
 
-            tracker.mid_point = (int((x1 + x2) / 2), int(y2))
+            mid_x = int((x1 + x2) / 2)
+            mid_y = int(y2)
+            tracker.mid_point = (mid_x, int(y2))
             tracker.mid_points.append(tracker.mid_point)
 
             for i in range(1, len(tracker.mid_points)): # show traces
-                cv2.circle(frame, tracker.mid_points[i], 3, -1) 
+                cv2.circle(frame, tracker.mid_points[i], 3, -1)
+                cv2.putText(frame, str(mid_x)+','+str(mid_y), (int(x2), int(y1)), 0, 5e-3 * 150, (255, 0, 0), 2) # check 了一下坐标系是一致的,都是依照像素点来的         
+
+            
 
     return tracker

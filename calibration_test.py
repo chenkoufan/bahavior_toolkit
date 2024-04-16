@@ -12,10 +12,12 @@ def click_event(event, x, y, flags, params):
         if len(points) < 4:
             points.append((x, y))
             cv2.circle(img, (x, y), 5, (0, 255, 0), -1)  # 用绿色标记前四个点
+            cv2.putText(img,str(x)+','+str(y), (int(x)+10, int(y)), 0, 5e-3 * 250, (255, 0, 0), 2)
         elif len(points) == 4:
             point_A = (x, y)
             points.append(point_A)
             cv2.circle(img, (x, y), 5, (0, 0, 255), -1)  # 用红色标记第五个点，即点A
+            cv2.putText(img,str(x)+','+str(y), (int(x)+10, int(y)), 0, 5e-3 * 250, (255, 0, 0), 2)
         cv2.imshow('image', img)
 
 def main(image_path):

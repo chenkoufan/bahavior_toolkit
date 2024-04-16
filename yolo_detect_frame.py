@@ -82,6 +82,6 @@ def yolo_process_frame(frame, words=['jacket'] , frame_count=0):
             tracker.mid_points.append(tracker.mid_point)  
 
             for i in range(1, len(tracker.mid_points)): # show traces
-                cv2.circle(frame, tracker.mid_points[i], 3, tracker.mid_points_color[i], -1) 
+                cv2.circle(frame, tracker.mid_points[i], 3, tracker.mid_points_color[i], -1)
 
     return tracker

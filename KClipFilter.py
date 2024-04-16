@@ -1,7 +1,8 @@
 
 from KFilter import *
 import numpy as np
-from yolo_detect_frame import yolo_process_frame
+# from yolo_detect_frame import yolo_process_frame # basic visualisation
+from yolo_detect_frame_positon import yolo_process_frame
 
 class KClipFilter(KFilter):
     def __init__(self):

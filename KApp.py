@@ -107,12 +107,12 @@ class KApp:
 
                 self.frame_reading += 1
                 time.sleep(1/30)
+                self.last_img = img
+            
 
             if self.frame_reading == self.current_video.get_frame_count():
             #读取完毕,显示最后一帧, read all the frames, show the last frame
-                img = self.current_video.frames[-1].frame_image
-                img = self.filters[self.current_filter_index].frame_change(img) # 变换frame
-                self.frame_image.set_data('BGR', -img.shape[1]*3, img.tobytes())
+                self.frame_image.set_data('BGR', -self.last_img.shape[1]*3, self.last_img.tobytes())
                 self.frame_image.blit(50, 20, width=640, height=400)
         
         for f in self.filters:

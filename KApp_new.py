@@ -18,9 +18,10 @@ from KMotionPathFilter import *
 window_width = 900
 window_height = 500
 scale_factor = 0.8
-cols = 5
-rows = 5
-start_x,start_y = 20, 20
+cols = 25
+rows = 15
+start_x = 20
+start_y = 20
 
 class KApp:
     """
@@ -54,9 +55,9 @@ class KApp:
         cap = cv2.VideoCapture(file_path)
         self.video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.cell_height = self.video_height*scale_factor / cols
-        self.cell_width = self.video_width*scale_factor / rows
-        self.grid_xy = []
+        self.cell_height = self.video_height*scale_factor / rows
+        self.cell_width = self.video_width*scale_factor / cols
+        self.grid_xy = []       
 
         for row in range(rows):
             for col in range(cols):
@@ -64,6 +65,8 @@ class KApp:
                 corner_x = start_x + col * self.cell_width
                 corner_y = start_y + row * self.cell_height
                 self.grid_xy.append((corner_x, corner_y))
+
+        self.grid_data = [0 for _ in range(len(self.grid_xy))] # 用来存储每个矩形的数据,控制显示颜色等
 
 
     def run(self):
@@ -96,7 +99,7 @@ class KApp:
         if (imgui.button("Create Map")):
             self.current_video = self.video.get_video(self.video_edit_start_time_sec, self.video_edit_end_time_sec, self.video_skip_frames) # KVideoNew content, 从video中获取片段, get the clip from the video
             
-            # self.current_video.apply_yolo() # 新加的 current_video.tracker_data里就是yolo结果
+            self.current_video.apply_yolo() # 新加的 current_video.tracker_data里就是yolo结果
             
             # for f in self.filters: # KFilter content,还没操作, not operated yet, 批量生成的时候用,现在先一个个来
             #     f.on_video_clip_changed(self.current_video) 
@@ -112,18 +115,14 @@ class KApp:
         # self.filters[self.current_filter_index].update_ui(self) # 这里可以改frames内容,然后可视化,现在用了下面的方法分类
         imgui.end()        
 
-        if self.current_video is not None and self.current_filter_index == 1: 
+        if self.current_video is not None and self.current_filter_index == 0: 
         # 就是filter里面的第二个
-            # video_visualisation(self)
-            for n in range(len(self.grid_xy)):
-                self.corner_x, self.corner_y = self.grid_xy[n]
-                rect = shapes.Rectangle(self.corner_x, self.corner_y, self.cell_width, self.cell_height, color=(50, 50, 150), batch=self.batch)
-                rect.draw()
-            print("Clip Filter")
+            self.video_visualisation()
             
 
         if self.current_video is not None and self.current_filter_index == 0:
         # 默认的第一个filter, default filter
+            
             if self.frame_reading < self.current_video.get_frame_count():
                 #render the points detected in the current frame
                 current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
@@ -133,8 +132,22 @@ class KApp:
                     # Adjust y-coordinate for Pyglet's coordinate system
                     adjusted_x = point[0]*scale_factor + start_x
                     adjusted_y = (self.video_height - point[1]) * scale_factor + start_x
+                    dx = adjusted_x - start_x
+                    dy = adjusted_y - start_y
+                    colx = int(dx / self.cell_width)
+                    rowy = int(dy / self.cell_height)
+                    grid_num = rowy * cols + colx
+                    if self.grid_data[grid_num] < 200:
+                        self.grid_data[grid_num] += 50
+
                     circle = shapes.Circle(adjusted_x, adjusted_y, 5, color=(255, 0, 0))  # Radius 5, red color
                     circle.draw()
+
+                
+                for n in range(len(self.grid_xy)):
+                    corner_x, corner_y = self.grid_xy[n]
+                    rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(self.grid_data[n], 50, 150, 150), batch=self.batch)
+                    rect.draw()
 
             time.sleep(1)
             self.frame_reading += 1
@@ -145,31 +158,31 @@ class KApp:
         #     if f.active:
         #         f.render(self)
 
-def video_visualisation(self:'KApp'):
-    imgui.begin("Video Clip")
-    imgui.text(f"Duration: {self.current_video.get_duration_sec()} sec")
-    imgui.text(f"Frame Count: {self.current_video.get_frame_count()}")
-    imgui.end()            
-    
-    if self.frame_reading < self.current_video.get_frame_count(): 
-    # 利用update()来读取视频帧, read the video frame using update()              
-        img = self.current_video.frames[self.frame_reading].frame_image # img是帧
+    def video_visualisation(self:'KApp'):
+        imgui.begin("Video Clip")
+        imgui.text(f"Duration: {self.current_video.get_duration_sec()} sec")
+        imgui.text(f"Frame Count: {self.current_video.get_frame_count()}")
+        imgui.end()            
+        
+        if self.frame_reading < self.current_video.get_frame_count(): 
+        # 利用update()来读取视频帧, read the video frame using update()              
+            img = self.current_video.frames[self.frame_reading].frame_image # img是帧
 
-        if self.frame_image is None:
-            self.frame_image = pyglet.image.ImageData(img.shape[1], img.shape[0], 'BGR', img.tobytes())
-        else:
-            self.frame_image.set_data('BGR', -img.shape[1]*3, img.tobytes())
+            if self.frame_image is None:
+                self.frame_image = pyglet.image.ImageData(img.shape[1], img.shape[0], 'BGR', img.tobytes())
+            else:
+                self.frame_image.set_data('BGR', -img.shape[1]*3, img.tobytes())
 
-        self.frame_image.blit(start_x, start_x, width=self.video_width*scale_factor, height=self.video_height*scale_factor)
+            self.frame_image.blit(start_x, start_x, width=self.video_width*scale_factor, height=self.video_height*scale_factor)
 
-        self.frame_reading += 1
-        time.sleep(1/30)
-        self.last_img = img            
+            self.frame_reading += 1
+            time.sleep(1/30)
+            self.last_img = img            
 
-    if self.frame_reading == self.current_video.get_frame_count():
-    #读取完毕,显示最后一帧, read all the frames, show the last frame
-        self.frame_image.set_data('BGR', -self.last_img.shape[1]*3, self.last_img.tobytes())
-        self.frame_image.blit(start_x, start_x, width=self.video_width*scale_factor, height=self.video_height*scale_factor)    
+        if self.frame_reading == self.current_video.get_frame_count():
+        #读取完毕,显示最后一帧, read all the frames, show the last frame
+            self.frame_image.set_data('BGR', -self.last_img.shape[1]*3, self.last_img.tobytes())
+            self.frame_image.blit(start_x, start_y, width=self.video_width*scale_factor, height=self.video_height*scale_factor)    
 
 if __name__ == '__main__':
     app = KApp()

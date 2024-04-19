@@ -15,6 +15,7 @@ from KFilter import * #
 from KClipFilter import * # 
 from KMotionPathFilter import *
 
+read_file_path = 'data/test.mp4'
 window_width = 900
 window_height = 500
 scale_factor = 0.8
@@ -22,6 +23,14 @@ cols = 25
 rows = 15
 start_x = 20
 start_y = 20
+
+class KGridPixel:
+    def __init__(self, x:int, y:int):
+        self.x = x
+        self.y = y
+        self.rect : shapes.Rectangle = None
+        self.data = 0
+
 
 class KApp:
     """
@@ -50,23 +59,41 @@ class KApp:
 
         self.frame_reading = 0
 
+        self.update_timer = 0
+        self.update_frequency = 30
+
         this_folder = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(this_folder, "data/test.mp4")
+        file_path = os.path.join(this_folder, read_file_path)
         cap = cv2.VideoCapture(file_path)
         self.video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.cell_height = self.video_height*scale_factor / rows
         self.cell_width = self.video_width*scale_factor / cols
-        self.grid_xy = []       
+        #self.grid_xy = []       
+
+        self.grid : List[KGridPixel] = []
 
         for row in range(rows):
             for col in range(cols):
                 # 计算每个矩形的左下角坐标
                 corner_x = start_x + col * self.cell_width
                 corner_y = start_y + row * self.cell_height
-                self.grid_xy.append((corner_x, corner_y))
+                #self.grid_xy.append((corner_x, corner_y))
 
-        self.grid_data = [0 for _ in range(len(self.grid_xy))] # 用来存储每个矩形的数据,控制显示颜色等
+                grid_pixel = KGridPixel(corner_x, corner_y)
+                
+                grid_pixel.rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(255, 50, 150, 150), batch=self.batch)
+
+                self.grid.append(grid_pixel)
+            
+
+        # self.grid_data = [0 for _ in range(len(self.grid_xy))] # 用来存储每个矩形的数据,控制显示颜色等
+
+        # self.grid_rects = []
+        # for n in range(len(self.grid_xy)):
+        #     corner_x, corner_y = self.grid_xy[n]
+        #     rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(255, 50, 150, 150), batch=self.batch)
+        #     self.grid_rects.append(rect)
 
 
     def run(self):
@@ -74,6 +101,7 @@ class KApp:
         self.window.run() #KWindow content
 
     def update(self):
+        self.update_timer += 1
         """调
         用一系列的 ImGui 界面创建方法来构建和管理 GUI
         
@@ -86,8 +114,10 @@ class KApp:
 
         if imgui.button("Load Video"):
             this_folder = os.path.dirname(os.path.abspath(__file__))
-            file = os.path.join(this_folder, "data/test.mp4") # 可加
+            file = os.path.join(this_folder, read_file_path) # 可加
             self.video = KVideo(file) # KVideo content 这里开始video变量进来, the video variable comes in
+
+
 
         #number input for start time
         #number input for end time
@@ -107,12 +137,15 @@ class KApp:
 
             # self.filters[self.current_filter_index].frame_change() # 因为要逐帧换,所以后来在update()里面处理
 
+        if (imgui.button("Reset")):
+            self.reset()
+
         selection_changed, new_selection =  imgui.listbox("Filters", self.current_filter_index, [f.name for f in self.filters])
 
         if selection_changed:
             self.current_filter_index = new_selection # 选中的那个
 
-        # self.filters[self.current_filter_index].update_ui(self) # 这里可以改frames内容,然后可视化,现在用了下面的方法分类
+        self.filters[self.current_filter_index].update_ui(self) # 这里可以改frames内容,然后可视化,现在用了下面的方法分类,不过word_list用这个显示
         imgui.end()        
 
         if self.current_video is not None and self.current_filter_index == 0: 
@@ -132,25 +165,16 @@ class KApp:
                     # Adjust y-coordinate for Pyglet's coordinate system
                     adjusted_x = point[0]*scale_factor + start_x
                     adjusted_y = (self.video_height - point[1]) * scale_factor + start_x
-                    dx = adjusted_x - start_x
-                    dy = adjusted_y - start_y
-                    colx = int(dx / self.cell_width)
-                    rowy = int(dy / self.cell_height)
-                    grid_num = rowy * cols + colx
-                    if self.grid_data[grid_num] < 200:
-                        self.grid_data[grid_num] += 50
 
-                    circle = shapes.Circle(adjusted_x, adjusted_y, 5, color=(255, 0, 0))  # Radius 5, red color
+                    circle = shapes.Circle(adjusted_x, adjusted_y, 3, color=(255, 0, 0))  # Radius 5, red color
                     circle.draw()
 
-                
-                for n in range(len(self.grid_xy)):
-                    corner_x, corner_y = self.grid_xy[n]
-                    rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(self.grid_data[n], 50, 150, 150), batch=self.batch)
-                    rect.draw()
 
-            time.sleep(1)
-            self.frame_reading += 1
+
+            self.batch.draw()
+
+            #time.sleep(1)
+            #self.frame_reading += 1
         
         imgui.render()        
         
@@ -158,14 +182,16 @@ class KApp:
         #     if f.active:
         #         f.render(self)
 
-    def video_visualisation(self:'KApp'):
-        imgui.begin("Video Clip")
-        imgui.text(f"Duration: {self.current_video.get_duration_sec()} sec")
-        imgui.text(f"Frame Count: {self.current_video.get_frame_count()}")
-        imgui.end()            
-        
+    def reset(self):
+        for n in range(len(self.grid)):
+            self.grid[n].data  = 0
+            self.grid[n].rect.color = (0, 50, 150, 150)
+
+        self.frame_reading = 0
+
+    def advance_frame(self):
         if self.frame_reading < self.current_video.get_frame_count(): 
-        # 利用update()来读取视频帧, read the video frame using update()              
+    # 利用update()来读取视频帧, read the video frame using update()              
             img = self.current_video.frames[self.frame_reading].frame_image # img是帧
 
             if self.frame_image is None:
@@ -173,15 +199,52 @@ class KApp:
             else:
                 self.frame_image.set_data('BGR', -img.shape[1]*3, img.tobytes())
 
-            self.frame_image.blit(start_x, start_x, width=self.video_width*scale_factor, height=self.video_height*scale_factor)
-
-            self.frame_reading += 1
-            time.sleep(1/30)
             self.last_img = img            
 
         if self.frame_reading == self.current_video.get_frame_count():
         #读取完毕,显示最后一帧, read all the frames, show the last frame
             self.frame_image.set_data('BGR', -self.last_img.shape[1]*3, self.last_img.tobytes())
+
+        if self.current_video is not None and self.current_filter_index == 0:
+        # 默认的第一个filter, default filter
+            
+            if self.frame_reading < self.current_video.get_frame_count():
+                #render the points detected in the current frame
+                current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
+
+                #use pyglet to draw the points
+                for point in current_frame.mid_points:  # Show traces
+                    # Adjust y-coordinate for Pyglet's coordinate system
+                    adjusted_x = point[0]*scale_factor + start_x
+                    adjusted_y = (self.video_height - point[1]) * scale_factor + start_x
+                    dx = adjusted_x - start_x
+                    dy = adjusted_y - start_y
+                    colx = int(dx / self.cell_width)
+                    rowy = int(dy / self.cell_height)
+                    grid_num = rowy * cols + colx
+                    if self.grid[grid_num].data < 250:
+                        self.grid[grid_num].data  += 50
+
+
+                
+                for n in range(len(self.grid)):
+                    #corner_x, corner_y = self.grid_xy[n]
+                    #rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(self.grid_data[n], 50, 150, 150), batch=self.batch)
+                    #rect.draw()
+                    self.grid[n].rect.color = (self.grid[n].data, 50, 150, 150)
+
+        self.frame_reading += 1
+
+    def video_visualisation(self:'KApp'):
+        imgui.begin("Video Clip")
+        imgui.text(f"Duration: {self.current_video.get_duration_sec()} sec")
+        imgui.text(f"Frame Count: {self.current_video.get_frame_count()}")
+        imgui.end()            
+
+        if self.update_timer % self.update_frequency == 0:
+            self.advance_frame()
+
+        if self.frame_image is not None:
             self.frame_image.blit(start_x, start_y, width=self.video_width*scale_factor, height=self.video_height*scale_factor)    
 
 if __name__ == '__main__':

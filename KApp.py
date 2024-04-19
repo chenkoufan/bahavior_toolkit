@@ -26,7 +26,7 @@ class KApp:
 
     def __init__(self):
         super().__init__()
-        self.window : KWindow = KWindow(1000, 800, self)
+        self.window : KWindow = KWindow(1000, 500, self)
         self.filters : List[KFilter] = []
         self.video : KVideo = None
         self.current_video : KVideoNew = None
@@ -103,7 +103,7 @@ class KApp:
                 else:
                     self.frame_image.set_data('BGR', -img.shape[1]*3, img.tobytes())
 
-                self.frame_image.blit(50, 20, width=640, height=400)
+                self.frame_image.blit(20, 20, width=640, height=400)
 
                 self.frame_reading += 1
                 time.sleep(1/30)
@@ -113,7 +113,7 @@ class KApp:
             if self.frame_reading == self.current_video.get_frame_count():
             #读取完毕,显示最后一帧, read all the frames, show the last frame
                 self.frame_image.set_data('BGR', -self.last_img.shape[1]*3, self.last_img.tobytes())
-                self.frame_image.blit(50, 20, width=640, height=400)
+                self.frame_image.blit(20, 20, width=640, height=400)
         
         for f in self.filters:
             if f.active:

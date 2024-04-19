@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def calibrated_location(image_path, point_A):
+def calibrated_location(image_path, point_A, new_width, new_height):
     img = cv2.imread(image_path)
     # cv2.imshow('Original Image', img)
 
@@ -16,13 +16,13 @@ def calibrated_location(image_path, point_A):
 
     # 透视变换
     src_pts = np.array(points, dtype="float32")
-    dst_pts = np.array([[0, 0], [300, 0], [300, 300], [0, 300]], dtype="float32")
+    dst_pts = np.array([[0, 0], [new_width, 0], [new_width, new_height], [0, new_height]], dtype="float32")
     M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    transformed_img = cv2.warpPerspective(img, M, (300, 300))
+    transformed_img = cv2.warpPerspective(img, M, (new_width, new_height))
     
     # 变换点A
     point_A_transformed = cv2.perspectiveTransform(np.array([[point_A]], dtype="float32"), M)
-    transformed_x, transformed_y = point_A_transformed[0][0]
+    transformed_x, transformed_y = point_A_transformed[0][0] # 变换后坐标
     cv2.circle(transformed_img, (int(transformed_x), int(transformed_y)), 5, (0, 0, 255), -1)
 
     # 显示变换后的图像和点A
@@ -34,4 +34,4 @@ def calibrated_location(image_path, point_A):
 
 if __name__ == "__main__":
     point_A = (1122, 723)
-    calibrated_location('data/test.png',point_A)
+    calibrated_location('data/test.png',point_A, 300, 400)

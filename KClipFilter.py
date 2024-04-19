@@ -1,8 +1,9 @@
 
 from KFilter import *
 import numpy as np
+from KVideo import *
 # from yolo_detect_frame import yolo_process_frame # basic visualisation
-from yolo_detect_frame_positon import yolo_process_frame
+from yolo_detect_frame_positon import yolo_process_frame, yolo_process_frame2
 
 class KClipFilter(KFilter):
     def __init__(self):
@@ -21,11 +22,23 @@ class KClipFilter(KFilter):
                 self.words[i] = new_word
             imgui.pop_id()
         
-    def frame_change(self,frame, increase_value=50):        
+    def frame_change(self, frame : np.ndarray , increase_value=50):        
         yolo_process_frame(frame)
+        print("Video clip changed")
+        return frame
+    
+    def frame_change2(self, frame : KVideoFrame, increase_value=50):        
+        yolo_process_frame2(frame)
         print("Video clip changed")
         return frame
         
 
     def render(self, app:'KApp'):
         super().render(app)
+        # if app.current_video is None:
+        #     return
+        # cframe = app.current_video.frames[app.frame_reading]
+        
+        # tracker = cframe.tracker_data
+
+        #draw the points on the image 

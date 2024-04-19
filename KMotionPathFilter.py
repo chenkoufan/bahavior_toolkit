@@ -4,7 +4,7 @@ from KFilter import *
 class KMotionPathsFilter(KFilter):
     def __init__(self):
         super().__init__()
-        self.name = "Motion Paths Filter"
+        self.name = "video_show"
 
     def update_ui(self, app:'KApp'):
         super().update_ui(app)

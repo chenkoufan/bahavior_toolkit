@@ -2,7 +2,7 @@ from typing import List
 import os
 import cv2
 
-from yolo_detect_frame_positon import yolo_process_frame, yolo_process_frame2
+from yolo_detect_frame_positon import yolo_process_frame2
 
 class KYoloData:
     def __init__(self):

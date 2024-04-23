@@ -3,7 +3,7 @@ from KFilter import *
 import numpy as np
 from KVideo import *
 # from yolo_detect_frame import yolo_process_frame # basic visualisation
-from yolo_detect_frame_positon import yolo_process_frame, yolo_process_frame2
+ 
 
 class KClipFilter(KFilter):
     def __init__(self):
@@ -23,7 +23,7 @@ class KClipFilter(KFilter):
             imgui.pop_id()
         
     def frame_change(self, frame : np.ndarray , increase_value=50):        
-        yolo_process_frame(frame)
+        # yolo_process_frame(frame)
         print("Video clip changed")
         return frame
     

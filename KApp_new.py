@@ -15,12 +15,14 @@ from KFilter import * #
 from KClipFilter import * # 
 from KMotionPathFilter import *
 
-read_file_path = 'data/test.mp4'
+# read_file_path = 'data/test.mp4'
+read_file_path = 'data/olin_original.MP4'
 window_width = 900
 window_height = 500
-scale_factor = 0.8
-cols = 25
-rows = 15
+# scale_factor = 0.8
+scale_factor = 0.36
+cols = 40
+rows = 20
 start_x = 20
 start_y = 20
 
@@ -30,6 +32,8 @@ class KGridPixel:
         self.y = y
         self.rect : shapes.Rectangle = None
         self.data = {'R':0, 'G':0, 'B':0, 'A':0} # 用来存储每个矩形的数据,控制显示颜色等,这里是颜色的数据,可以改成其他数据
+        self.active = False
+        self.num = 0
 
 
 class KApp:
@@ -53,13 +57,16 @@ class KApp:
         self.video_edit_end_time_sec = 1.0
         self.video_skip_frames = 5
 
+        self.visual_threshold = 0.15
+        self.visual_scale = 5.0
+
         self.frame_image = None
         self.video_height = None
         self.video_width = None
 
         self.frame_reading = 0
         self.update_timer = 0
-        self.update_frequency = 5
+        self.update_frequency = 2
 
         this_folder = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(this_folder, read_file_path)
@@ -68,10 +75,12 @@ class KApp:
         self.video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.cell_height = self.video_height*scale_factor / rows
         self.cell_width = self.video_width*scale_factor / cols
-        #self.grid_xy = []       
+        #self.grid_xy = []
 
         self.grid : List[KGridPixel] = [] # 用来存储每个矩形(class)的数据,控制显示颜色等
 
+        self.background = shapes.Rectangle(start_x, start_y, self.video_width*scale_factor, self.video_height*scale_factor, color=(0, 50, 150, 150)) # 底图
+        self.background.draw()
         for row in range(rows):
             for col in range(cols):
                 # 计算每个矩形的左下角坐标
@@ -80,7 +89,7 @@ class KApp:
 
                 grid_pixel = KGridPixel(corner_x, corner_y)
                 
-                grid_pixel.rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(255, 50, 150, 150), batch=self.batch) # 这里已经画了矩形了,相当于后面只用改它的颜色就行
+                grid_pixel.rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(0, 50, 150, 150), batch=self.batch) # 这里已经画了矩形了,相当于后面只用改它的颜色就行
 
                 self.grid.append(grid_pixel)
         
@@ -126,7 +135,9 @@ class KApp:
 
         if selection_changed:
             self.current_filter_index = new_selection # 选中的那个
-
+        
+        changed, self.visual_threshold = imgui.input_float("Threshold", self.visual_threshold)
+        changed, self.visual_scale = imgui.input_float("Scale", self.visual_scale)
         self.filters[self.current_filter_index].update_ui(self) # 这里可以改frames内容,然后可视化,现在用了下面的方法分类,不过word_list用这个显示
         imgui.end()
 
@@ -134,23 +145,6 @@ class KApp:
         # 就是filter里面的第二个
             self.data_visualisation()
 
-        # if self.current_video is not None and self.current_filter_index == 0:
-        # # 默认的第一个filter, default filter
-            
-        #     if self.frame_reading < self.current_video.get_frame_count():
-        #         #render the points detected in the current frame
-        #         current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
-
-        #         #use pyglet to draw the points
-        #         for point in current_frame.mid_points:  # Show traces
-        #             # Adjust y-coordinate for Pyglet's coordinate system
-        #             adjusted_x = point[0]*scale_factor + start_x
-        #             adjusted_y = (self.video_height - point[1]) * scale_factor + start_x # 这里是为了适应pyglet的坐标系,左下角为原点
-
-        #             circle = shapes.Circle(adjusted_x, adjusted_y, 3, color=(255, 0, 0),batch=self.batch)
-        #             circle.draw()
-        #     self.batch.draw()
-        
         imgui.render()        
         
         # for f in self.filters:
@@ -162,8 +156,10 @@ class KApp:
             self.grid[n].data = {'R':0, 'G':0, 'B':0, 'A':0}
             self.grid[n].rect.color = (0, 50, 150, 150)
         self.frame_reading = 0
+        self.background.draw()
 
     def advance_yolo_frame(self):
+        
         if self.frame_reading < self.current_video.get_frame_count(): 
         # 利用update()来读取视频帧, read the video frame using update()              
             img = self.current_video.frames[self.frame_reading].frame_image # img是帧
@@ -200,14 +196,26 @@ class KApp:
                 colx = int(dx / self.cell_width)
                 rowy = int(dy / self.cell_height)
                 grid_num = rowy * cols + colx
+                self.grid[grid_num].active = True
+                self.grid[grid_num].num += 1
 
-                if self.grid[grid_num].data['R'] < 250:
+                if self.grid[grid_num].data['R'] < 255:
                 #     self.grid[grid_num].data  += 50 # 这里相当于是最简单的cumulative sum
-                    word0_data = current_frame.clip_datas['walking'][i] # 这里是clipdata的值
-                    self.grid[grid_num].data['R'] += int(50 * float(word0_data)) # 这里是根据clipdata的值来改变颜色
-            
-            for n in range(len(self.grid)):
-                self.grid[n].rect.color = (self.grid[n].data['R'], 50, 150, 150) # 根据信息每次改颜色
+                    word0_data = current_frame.clip_datas['standing'][i] # 这里是clipdata的值
+                    self.grid[grid_num].data['R'] += int(self.visual_scale * (float(word0_data)-self.visual_threshold)) # 这里是根据clipdata的值来改变颜色
+                else:
+                    self.grid[grid_num].data['R'] = 255
+
+                if self.grid[grid_num].data['G'] < 255:
+                #     self.grid[grid_num].data  += 50 # 这里相当于是最简单的cumulative sum
+                    word1_data = current_frame.clip_datas['walking'][i] # 这里是clipdata的值
+                    self.grid[grid_num].data['G'] += int(self.visual_scale * (float(word1_data)-self.visual_threshold)) # 这里是根据clipdata的值来改变颜色
+                else:
+                    self.grid[grid_num].data['G'] = 255            
+
+                a_R = int(self.grid[grid_num].data['R']/self.grid[grid_num].num)
+                a_G = int(self.grid[grid_num].data['G']/self.grid[grid_num].num)
+                self.grid[grid_num].rect.color = (a_R, a_G, 0, 150) # 根据信息每次改颜色
 
         self.frame_reading += 1
 

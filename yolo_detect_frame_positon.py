@@ -16,7 +16,7 @@ detection_threshold = 0.5 # 可能性0.5以上的算作人
 person_class_id = 0 # 人的id,做分类,其实好像是除了视频路径外的唯一的东西
 
 
-def yolo_process_frame2(frame_data : 'KVideoFrame', words=['walking']):
+def yolo_process_frame2(frame_data : 'KVideoFrame', words=['standing','walking']):
     mid_points = []
     datas = {}
     frame = frame_data.frame_image

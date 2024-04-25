@@ -211,7 +211,7 @@ class KApp:
                     word1_data = current_frame.clip_datas['walking'][i] # 这里是clipdata的值
                     self.grid[grid_num].data['G'] += int(self.visual_scale * (float(word1_data)-self.visual_threshold)) # 这里是根据clipdata的值来改变颜色
                 else:
-                    self.grid[grid_num].data['G'] = 255            
+                    self.grid[grid_num].data['G'] = 255
 
                 a_R = int(self.grid[grid_num].data['R']/self.grid[grid_num].num)
                 a_G = int(self.grid[grid_num].data['G']/self.grid[grid_num].num)

@@ -12,8 +12,8 @@ import time
 from KWindow import * # 管理窗口
 from KVideo import * # 视频处理,包括导入完整视频,截取片段,视频内容处理(重点部分)
 from KFilter import * # 
-from KClipFilter import * # 
-from KMotionPathFilter import *
+from KFilterClip import * # 
+from KFilterShowVideo import *
 
 # read_file_path = 'data/test.mp4'
 read_file_path = 'data/olin_original.MP4'
@@ -46,6 +46,7 @@ class KApp:
 
     def __init__(self):
         super().__init__()
+        self.words = ['standing','walking']
         self.batch = pyglet.graphics.Batch()
         self.window : KWindow = KWindow(window_width, window_height, self)
         self.filters : List[KFilter] = []
@@ -125,8 +126,10 @@ class KApp:
 
         if (imgui.button("Create Map")):
             self.current_video = self.video.get_video(self.video_edit_start_time_sec, self.video_edit_end_time_sec, self.video_skip_frames) # KVideoNew content, 从video中获取片段, get the clip from the video
+            self.current_video.end_time_sec = self.video_edit_end_time_sec
+            self.current_video.start_time_sec = self.video_edit_start_time_sec
             
-            self.current_video.apply_yolo() # 新加的 current_video.tracker_data里就是yolo结果
+            self.current_video.apply_yolo(self.words) # 新加的 current_video.tracker_data里就是yolo结果
 
         if (imgui.button("Reset")):
             self.reset()
@@ -143,7 +146,7 @@ class KApp:
 
         if self.current_video is not None : 
         # 就是filter里面的第二个
-            self.data_visualisation()
+            self.data_visualisation() # 显示数据,函数都写在后面了
 
         imgui.render()        
         
@@ -159,24 +162,7 @@ class KApp:
         self.background.draw()
 
     def advance_yolo_frame(self):
-        
-        if self.frame_reading < self.current_video.get_frame_count(): 
-        # 利用update()来读取视频帧, read the video frame using update()              
-            img = self.current_video.frames[self.frame_reading].frame_image # img是帧
-
-            if self.frame_image is None:
-                self.frame_image = pyglet.image.ImageData(img.shape[1], img.shape[0], 'BGR', img.tobytes())
-            else:
-                self.frame_image.set_data('BGR', -img.shape[1]*3, img.tobytes())
-
-            self.last_img = img
-
-        if self.frame_reading == self.current_video.get_frame_count():
-        #读取完毕,显示最后一帧, read all the frames, show the last frame
-            self.frame_image.set_data('BGR', -self.last_img.shape[1]*3, self.last_img.tobytes())
-
-        # 上面就是更新底图内容,visualisation是显示内容
-            
+                  
         if self.frame_reading < self.current_video.get_frame_count():
             # render the points detected in the current frame
             current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
@@ -199,25 +185,31 @@ class KApp:
                 self.grid[grid_num].active = True
                 self.grid[grid_num].num += 1
 
-                if self.grid[grid_num].data['R'] < 255:
-                #     self.grid[grid_num].data  += 50 # 这里相当于是最简单的cumulative sum
-                    word0_data = current_frame.clip_datas['standing'][i] # 这里是clipdata的值
-                    self.grid[grid_num].data['R'] += int(self.visual_scale * (float(word0_data)-self.visual_threshold)) # 这里是根据clipdata的值来改变颜色
-                else:
-                    self.grid[grid_num].data['R'] = 255
-
-                if self.grid[grid_num].data['G'] < 255:
-                #     self.grid[grid_num].data  += 50 # 这里相当于是最简单的cumulative sum
-                    word1_data = current_frame.clip_datas['walking'][i] # 这里是clipdata的值
-                    self.grid[grid_num].data['G'] += int(self.visual_scale * (float(word1_data)-self.visual_threshold)) # 这里是根据clipdata的值来改变颜色
-                else:
-                    self.grid[grid_num].data['G'] = 255
-
-                a_R = int(self.grid[grid_num].data['R']/self.grid[grid_num].num)
-                a_G = int(self.grid[grid_num].data['G']/self.grid[grid_num].num)
-                self.grid[grid_num].rect.color = (a_R, a_G, 0, 150) # 根据信息每次改颜色
+                if len(self.words) >= 1:
+                    R_value =  self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[0],i,'R')
+                    self.grid[grid_num].rect.color = (R_value, 0, 0, 150) # 根据信息每次改颜色
+                
+                if len(self.words) >= 2:
+                    G_value= self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[1],i,'G')
+                    self.grid[grid_num].rect.color = (R_value, G_value, 0, 150)
 
         self.frame_reading += 1
+
+    #     self.grid[grid_num].data  += 50 # 这里相当于是最简单的cumulative sum
+
+    def clip_on_grid(self,clip_data,grid_num,word,i,RGB):
+        if self.grid[grid_num].data[RGB] < 255:        
+            word0_data = clip_data[word][i] # 这里是clipdata的值
+            cali_data = int(self.visual_scale * (float(word0_data)-self.visual_threshold))
+            self.grid[grid_num].data[RGB] += cali_data # 这里是累加调整后的clipdata的值
+
+            if self.filters[self.current_filter_index].accu_mean == 0: # 0是累加,1是平均,0 for accu, 1 for mean
+                RGB_value = self.grid[grid_num].data[RGB]
+            elif self.filters[self.current_filter_index].accu_mean == 1:
+                RGB_value = int(self.grid[grid_num].data[RGB]/self.grid[grid_num].num)
+        else:
+            RGB_value = 255
+        return RGB_value
 
     def advance_video_frame(self):
         self.person_points.clear()
@@ -243,13 +235,13 @@ class KApp:
         imgui.text(f"Frame Count: {self.current_video.get_frame_count()}")
         imgui.end()
 
-        show_yolo = self.current_filter_index == 0
-        show_video = self.current_filter_index == 1
+        show_yolo = self.current_filter_index in [0]
+        show_video = self.current_filter_index in [0,1]
         if self.update_timer % self.update_frequency == 0: # 30帧更新一次,但是更新的哪一帧还是前面的控制的
             # 统一在这里控制好了
             if show_yolo:
                 self.advance_yolo_frame()
-            elif show_video:
+            if show_video:
                 self.advance_video_frame()
 
         if self.frame_image is not None: # 显示内容

@@ -12,8 +12,8 @@ import time
 from KWindow import * # 管理窗口
 from KVideo import * # 视频处理,包括导入完整视频,截取片段,视频内容处理(重点部分)
 from KFilter import * # 
-from KClipFilter import * # 
-from KMotionPathFilter import *
+from KFilterClip import * # 
+from KFilterShowVideo import *
 
 class KApp:
     """

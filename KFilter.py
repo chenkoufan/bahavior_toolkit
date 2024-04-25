@@ -14,6 +14,8 @@ class KFilter:
         super().__init__()
         self.name = ''
         self.active = True
+        self.filters = ['accu','mean']
+        self.accu_mean = 0
 
     def update_ui(self, app:'KApp'):
         imgui.text(self.name)
@@ -24,6 +26,11 @@ class KFilter:
                 self.on_activated()
             else:
                 self.on_deactivated()
+
+        # 加计算平均和总数值的选项
+        selection_changed, new_selection =  imgui.listbox("vis_data", self.accu_mean, [f for f in self.filters])
+        if selection_changed:
+            self.accu_mean = new_selection # 选中的那个
     
     def on_activated(self):
         print("Filter activated")

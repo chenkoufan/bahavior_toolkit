@@ -2,7 +2,7 @@ from typing import List
 import os
 import cv2
 
-from yolo_detect_frame_positon import yolo_process_frame2
+from K_yolo_detect_frame_positon import yolo_process_frame2
 
 class KYoloData:
     def __init__(self):
@@ -31,9 +31,9 @@ class KVideoNew:
         self.end_time_sec = 0.0
         self.frames : List[KVideoFrame] = []
 
-    def apply_yolo(self):
+    def apply_yolo(self,words):
         for frame in self.frames:
-            yolo_process_frame2(frame) # self : 'KVideoFrame', 这一步把数据存进video.tracker_data里面,原画面不变,
+            yolo_process_frame2(frame,words) # self : 'KVideoFrame', 这一步把数据存进video.tracker_data里面,原画面不变,
 
     def add_frame(self, frame:KVideoFrame):
         self.frames.append(frame)

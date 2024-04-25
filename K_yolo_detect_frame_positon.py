@@ -51,7 +51,7 @@ def yolo_process_frame2(frame_data : 'KVideoFrame', words=['standing','walking']
             #截取出画面
             crop_frame = frame[int(y1):int(y2), int(x1):int(x2)]
             
-            clip_data = clip_image(words,crop_frame) # 对这个人clip计算words-value
+            clip_data = clip_image(words,crop_frame) # 对这个人clip计算words-value,也可以用grid来计算
             for key in clip_data.keys():
                 if key not in datas.keys():
                     datas[key] = []

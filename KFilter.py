@@ -9,13 +9,16 @@ import os
 from KVideo import *
 
 
-class KFilter:    
+class KFilter:
+    rows = 20
+    cols = 40
     def __init__(self):
         super().__init__()
         self.name = ''
         self.active = True
         self.filters = ['accu','mean']
         self.accu_mean = 0
+
 
     def update_ui(self, app:'KApp'):
         imgui.text(self.name)

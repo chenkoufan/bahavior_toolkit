@@ -5,7 +5,7 @@ from KVideo import *
 # from yolo_detect_frame import yolo_process_frame # basic visualisation
  
 
-class KClipFilter(KFilter):
+class KFilterClip(KFilter):
     def __init__(self):
         super().__init__()
         self.words :List[str] = ["cat"]
@@ -13,7 +13,7 @@ class KClipFilter(KFilter):
         
 
     def update_ui(self, app:'KApp'):
-        super().update_ui(app)        
+        super().update_ui(app)
 
         if imgui.button("Add Word"):
             self.words.append("new word")
@@ -23,6 +23,7 @@ class KClipFilter(KFilter):
             if changed:
                 self.words[i] = new_word
             imgui.pop_id()
+
         
     def frame_change(self, frame : np.ndarray , increase_value=50):        
         # yolo_process_frame(frame)

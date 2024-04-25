@@ -1,10 +1,11 @@
 from KFilter import *
+from KApp_new import KGridPixel
 
 #todo
-class KFilterShowVideo(KFilter):
+class KFilterFrequency(KFilter):
     def __init__(self):
         super().__init__()
-        self.name = "Show Video"
+        self.name = "Show Frequency"
 
     def update_ui(self, app:'KApp'):
         super().update_ui(app)

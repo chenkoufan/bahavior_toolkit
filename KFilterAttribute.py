@@ -5,7 +5,7 @@ from KVideo import *
 # from yolo_detect_frame import yolo_process_frame # basic visualisation
  
 
-class KClipFilter(KFilter):
+class KFilterClipAttribute(KFilter):
     def __init__(self):
         super().__init__()
         self.words :List[str] = ["cat"]

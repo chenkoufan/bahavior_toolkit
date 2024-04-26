@@ -20,7 +20,7 @@ from clipImage_function import clip_image
 
 
 # read_file_path = 'data/test.mp4'
-read_file_path = 'data/olin_original.MP4'
+read_file_path = 'data/franny426.mp4'
 window_width = 900
 window_height = 500
 # scale_factor = 0.8

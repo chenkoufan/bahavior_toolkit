@@ -76,3 +76,6 @@ def yolo_process_frame2(frame_data : 'KVideoFrame', words=['standing','walking']
     frame_data.mid_points = mid_points
     frame_data.clip_datas = datas
     # return tracker
+
+def process_clip(crop_frame : 'KVideoFrame', words=['standing','walking'],n=0):
+    return clip_image(words,crop_frame)

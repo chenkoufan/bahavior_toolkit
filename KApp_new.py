@@ -57,7 +57,7 @@ class KApp:
 
     def __init__(self):
         super().__init__()
-        self.words = ['standing','walking']
+        self.words = ['chatting',]
         self.batch_grid = pyglet.graphics.Batch()
         self.batch_Agrid = pyglet.graphics.Batch()
         self.window : KWindow = KWindow(window_width, window_height, self)
@@ -71,7 +71,7 @@ class KApp:
         self.video_skip_frames = 5
 
         self.visual_threshold = 0.15
-        self.visual_scale = 5.0
+        self.visual_scale = 50.0
 
         self.frame_image = None
         self.video_height = None
@@ -110,6 +110,8 @@ class KApp:
     def init_Agrid(self):
         self.Acell_height = self.video_height*scale_factor / AGridPixel.rows
         self.Acell_width = self.video_width*scale_factor / AGridPixel.cols
+        AGridPixel.Acell_height = self.Acell_height
+        AGridPixel.Acell_width = self.Acell_width
 
         self.Agrid : List[AGridPixel] = []
         
@@ -123,7 +125,6 @@ class KApp:
                 grid_pixel = AGridPixel(corner_x, corner_y)
                 grid_pixel.rect = shapes.Rectangle(corner_x, corner_y, self.Acell_width, self.Acell_height, color=(0, 50, 150, 150), batch=self.batch_Agrid)
                 self.Agrid.append(grid_pixel)
-                
 
     def run(self):
         """调用KWindow的run(),启动pyglet主循环"""
@@ -131,10 +132,7 @@ class KApp:
 
     def update(self):
         self.update_timer += 1
-        """调
-        用一系列的 ImGui 界面创建方法来构建和管理 GUI
-        
-        """
+        """调用一系列的 ImGui 界面创建方法来构建和管理 GUI"""
         gl.glClearColor(0, 0.084, 0.255, 1)
         imgui.new_frame()
 
@@ -176,6 +174,8 @@ class KApp:
             self.current_video.start_time_sec = self.video_edit_start_time_sec            
             if self.show_attribute != True:
                 self.current_video.apply_yolo(self.words) # 新加的 current_video.tracker_data里就是yolo结果
+            if self.show_attribute:
+                self.current_video.apply_clip(self.words, self.Agrid)
 
         if (imgui.button("Reset")):
             self.reset()
@@ -197,7 +197,8 @@ class KApp:
 
     def reset(self):        
         self.init_grid()
-        self.init_Agrid()
+        for n in range(len(self.Agrid)):
+            self.Agrid[n].data = {'R':0, 'G':0, 'B':0, 'A':0}
         self.frame_reading = 0
         self.background.draw()
         
@@ -229,8 +230,8 @@ class KApp:
                 if self.show_frequency:
                     self.grid[grid_num].data['G'] += self.visual_scale # 这里相当于是最简单的cumulative sum                    
                     R_value = self.grid[grid_num].data['G']
-                    if R_value > 255:
-                        R_value = 255
+                    if R_value > 255: R_value = 255
+                    if R_value < 0: R_value = 0
                     self.grid[grid_num].rect.color = (int(R_value), 0, 0, 150)
 
                 elif self.show_clip:
@@ -239,6 +240,7 @@ class KApp:
                         R_value =  self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[0],i,'R')
                         if R_value > 255:
                             R_value = 255
+                        
                         
                     if len(self.words) >= 2:
                         G_value= self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[1],i,'G')
@@ -259,31 +261,38 @@ class KApp:
                 RGB_value = self.grid[grid_num].data[RGB]
             elif self.filters[self.current_filter_index].accu_mean == 1:
                 RGB_value = int(self.grid[grid_num].data[RGB]/self.grid[grid_num].num)
+        elif RGB_value < 0:
+            RGB_value = 0  
         else:
             RGB_value = 255
+        
         return RGB_value
 
     def advance_clip_attribute_frame(self,R_value=0,G_value=0):
         #attribute    
         if self.frame_reading < self.current_video.get_frame_count():
-            current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
+            # current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
             for grid in self.Agrid:
-                crop_frame = current_frame.frame_image[int(grid.y):int(grid.y+self.Acell_height), int(grid.x):int(grid.x+self.Acell_width)]
-                grid.clip_data = clip_image(self.words,crop_frame)
+                # crop_frame = current_frame.frame_image[int(grid.y):int(grid.y+self.Acell_height), int(grid.x):int(grid.x+self.Acell_width)]
+                # grid.clip_data = clip_image(self.words,crop_frame)
 
-                # if len(self.words) >= 1:
-                #     grid.data['R'] += int(self.visual_scale * (float(grid.clip_data[self.words[0]])-self.visual_threshold))
-                #     if grid.data['R'] > 255:
-                #         R_value = 255
-                #     else:
-                #         R_value = grid.data['R']                    
+                if len(self.words) >= 1:
+                    grid.data['R'] += int(self.visual_scale * (float(grid.clip_data[self.words[0]])-self.visual_threshold))
+                    if grid.data['R'] > 255:
+                        R_value = 255
+                    elif grid.data['R'] < 0:
+                        R_value = 0
+                    else:
+                        R_value = grid.data['R']                    
 
                 if len(self.words) >= 2:
                     grid.data['G'] += int(self.visual_scale * (float(grid.clip_data[self.words[1]])-self.visual_threshold))
                     if grid.data['G'] > 255:
-                        R_value = 255
+                        G_value = 255
+                    elif grid.data['G'] < 0:
+                        G_value = 0
                     else:
-                        R_value = grid.data['G']
+                        G_value = grid.data['G']
 
                 grid.rect.color = (R_value, G_value, 150, 150)
         self.frame_reading += 1

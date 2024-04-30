@@ -1,6 +1,7 @@
 import numpy as np
 from pyglet import shapes
 from Kcolor_normalize import *
+from pyglet.text import Label
 
 class KGridPixel:
     cols = 40
@@ -30,3 +31,8 @@ class AGridPixel(KGridPixel):
     def __init__(self, x:int, y:int):
         super().__init__(x,y)
         self.clip_data = {}
+        self.label = Label('',
+                           font_name='Times New Roman',
+                           font_size=12,
+                           x=self.x, y=self.y,
+                           anchor_x='left', anchor_y='bottom')

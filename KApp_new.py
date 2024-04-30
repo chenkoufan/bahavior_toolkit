@@ -22,7 +22,7 @@ from Kcolor_normalize import *
 
 
 # read_file_path = 'data/test.mp4'
-read_file_path = 'data/olin_original.MP4'
+read_file_path = 'data/franny426.mp4'
 window_width = 900
 window_height = 500
 # scale_factor = 0.8
@@ -302,8 +302,7 @@ class KApp:
                     normalized_color_data = (grid.color_data - minRGB) / scale * 255
                     grid.rect.color = colorTuple(normalized_color_data[0], normalized_color_data[1], 0, 150)  # Assume alpha is 150 for visualization
 
-        self.frame_reading += 1
-       
+        self.frame_reading += 1       
 
     def advance_video_frame(self):
         self.person_points.clear()

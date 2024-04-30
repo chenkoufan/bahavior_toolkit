@@ -18,10 +18,11 @@ from KFilterClip import * #
 from KFilterAttribute import *
 from KFilterShowVideo import *
 from clipImage_function import clip_image
+from Kcolor_normalize import *
 
 
 # read_file_path = 'data/test.mp4'
-read_file_path = 'data/original_cropped.mp4'
+read_file_path = 'data/olin_original.MP4'
 window_width = 900
 window_height = 500
 # scale_factor = 0.8
@@ -30,61 +31,9 @@ scale_factor = 0.36
 start_x = 20
 start_y = 20
 
-def clamp(r, minv, maxv):
-   #return max(min(r,maxv), minv)
-
-    if r<minv:
-        return minv
-    if r>maxv:
-        return maxv
-    
-    return r
-
-
-
-def colorComponent(r:float)->int:
-    return clamp(int(r), 0, 255)
-
-def colorTuple(r,g,b,a):
-    return (colorComponent(r), colorComponent(g), colorComponent(b), colorComponent(a))
-
-
-
-class KGridPixel:
-    cols = 40
-    rows = 20
-    def __init__(self, x:int, y:int):
-        self.x = x
-        self.y = y
-        self.rect : shapes.Rectangle = None
-        self.data = np.array([0.0,0.0,0.0,0.0]) # 用来存储每个矩形的数据,控制显示颜色等,这里是颜色的数据,可以改成其他数据
-        self.active = False
-        self.num = 0
-
-    @property
-    def RGBAtuple(self):
-        return colorTuple(self.data[0], self.data[1], self.data[2], self.data[3])
-    
-
-    def getData(self, use_mean):
-        if use_mean and self.num>0:
-            return self.data/self.num
-        return self.data
-
-
-class AGridPixel(KGridPixel):
-    cols = 4
-    rows = 4
-    def __init__(self, x:int, y:int):
-        super().__init__(x,y)
-        self.clip_data = {}
-
 class KApp:
     """
-    window 管理gui,显示视频.处理输入
-    filters 每个filter处理不用方面
-    video 加载和处理视频文件
-    current_video 正在编辑的视频片段
+    window 管理gui,显示视频.处理输入    filters 每个filter处理不用方面    video 加载和处理视频文件    current_video 正在编辑的视频片段
     """
 
     def __init__(self):
@@ -127,16 +76,16 @@ class KApp:
 
         self.grid : List[KGridPixel] = [] # 用来存储每个矩形(class)的数据,控制显示颜色等
         
-        self.background = shapes.Rectangle(start_x, start_y, self.video_width*scale_factor, self.video_height*scale_factor, color=(0, 50, 150, 150)) # 底图
+        self.background = shapes.Rectangle(start_x, start_y, self.video_width*scale_factor, self.video_height*scale_factor, color=(0, 50, 150, 100), batch = self.batch_grid) # 底图
         self.background.draw()
         for row in range(KGridPixel.rows):
             for col in range(KGridPixel.cols):
                 # 计算每个矩形的左下角坐标
                 corner_x = start_x + col * self.cell_width
                 corner_y = start_y + row * self.cell_height
-                grid_pixel = KGridPixel(corner_x, corner_y)                
+                grid_pixel = KGridPixel(corner_x, corner_y)
                 grid_pixel.rect = shapes.Rectangle(corner_x, corner_y, self.cell_width, self.cell_height, color=(0, 50, 150, 150), batch=self.batch_grid) # 这里已经画了矩形了,相当于后面只用改它的颜色就行
-                self.grid.append(grid_pixel)        
+                self.grid.append(grid_pixel)
         self.person_points = [] # 用来存储每个人点的位置
     
     def init_Agrid(self):
@@ -204,12 +153,14 @@ class KApp:
             self.current_video = self.video.get_video(self.video_edit_start_time_sec, self.video_edit_end_time_sec, self.video_skip_frames) # KVideoNew content, 从video中获取片段, get the clip from the video
             self.current_video.end_time_sec = self.video_edit_end_time_sec
             self.current_video.start_time_sec = self.video_edit_start_time_sec
+            self.reset() # 自动重置所有数据, reset all data
+
             if self.show_attribute or self.show_clip:
-                self.words = self.filters[self.current_filter_index].words
+                self.words = self.filters[self.current_filter_index].words # 自定义words
             if self.show_attribute != True:
                 self.current_video.apply_yolo(self.words) # 新加的 current_video.tracker_data里就是yolo结果
             if self.show_attribute:
-                self.init_Agrid()
+                self.init_Agrid() # 因为不想在reset里全部重来
                 self.current_video.apply_clip(self.words, self.Agrid)
 
         if (imgui.button("Reset")):
@@ -223,21 +174,17 @@ class KApp:
         if self.current_video is not None: 
         # 就是filter里面的第二个
             self.data_visualisation() # 显示数据,函数都写在后面了
-
         imgui.render()        
-        
         # for f in self.filters:
         #     if f.active:
         #         f.render(self)
 
     def reset(self):        
         self.init_grid()
-        for n in range(len(self.Agrid)):
-            self.Agrid[n].data = {'R':0, 'G':0, 'B':0, 'A':0}
+        # for n in range(len(self.Agrid)):
+        #     self.Agrid[n].data = {'R':0, 'G':0, 'B':0, 'A':0}
         self.frame_reading = 0
         self.background.draw()
-        
-
 
     def advance_yolo_frame(self,R_value=0,G_value=0):
                   
@@ -255,17 +202,18 @@ class KApp:
                 person_points = shapes.Circle(adjusted_x, adjusted_y, 3, color=(255, 0, 0),batch=self.batch_grid)
                 self.person_points.append(person_points) # 用来存储每个人点的位置,每次刷新都会清空,所以每次都要重新画
 
+                # 根据人点坐标,计算在哪个矩形里,然后对应的矩形数据加1, 
+                # according to the person point coordinate, calculate which grid it is in, then add 1 to the corresponding grid data
                 dx = adjusted_x - start_x
                 dy = adjusted_y - start_y
                 colx = int(dx / self.cell_width)
                 rowy = int(dy / self.cell_height)
                 grid_num = rowy * KGridPixel.cols + colx
                 self.grid[grid_num].active = True
-                self.grid[grid_num].num += 1
+                self.grid[grid_num].num += 1 
 
                 if self.show_frequency:
-                    self.grid[grid_num].data[0] += self.visual_scale # 这里相当于是最简单的cumulative sum                    
-    
+                    self.grid[grid_num].color_data[0] += self.visual_scale # 这里相当于是最简单的cumulative sum    
 
                 elif self.show_clip:
                     # clip data
@@ -280,7 +228,7 @@ class KApp:
 
         use_mean = (self.filters[self.current_filter_index].accu_mean == 1)
 
-        for i,g in enumerate(self.grid):   
+        for i,g in enumerate(self.grid):
             if g.num==0:
                 continue
 
@@ -309,7 +257,6 @@ class KApp:
             else:
                 d = g.getData(use_mean)
 
-
                 R_value = 255*(d[0] - minRGB[0])/scale[0]
                 G_value = 255*(d[1] - minRGB[1])/scale[1]
                 g.rect.color = colorTuple(R_value, G_value, 0, 150)                
@@ -317,35 +264,46 @@ class KApp:
         self.frame_reading += 1
 
     def clip_on_grid(self,clip_data,grid_num,word,i,RGB):
-        RGB_value = self.grid[grid_num].data[RGB]
-        
+        RGB_value = self.grid[grid_num].color_data[RGB]
         
         word0_data = clip_data[word][i] # 这里是clipdata的值
         cali_data = float(word0_data)
-        self.grid[grid_num].data[RGB] += cali_data # 这里是累加调整后的clipdata的值
-
-
+        self.grid[grid_num].color_data[RGB] += cali_data # 这里是累加调整后的clipdata的值
 
         return RGB_value
 
     def advance_clip_attribute_frame(self,R_value=0,G_value=0):
-        #attribute    
+        # #attribute    
         if self.frame_reading < self.current_video.get_frame_count():
-            # current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
+            current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
+
+            minRGB = np.array([float('inf'), float('inf'), 0, 0])
+            maxRGB = np.array([float('-inf'), float('-inf'), 0, 0])
+
             for grid in self.Agrid:
-                # crop_frame = current_frame.frame_image[int(grid.y):int(grid.y+self.Acell_height), int(grid.x):int(grid.x+self.Acell_width)]
-                # grid.clip_data = clip_image(self.words,crop_frame)
+                crop_frame = current_frame.frame_image[int(grid.y):int(grid.y+self.Acell_height), int(grid.x):int(grid.x+self.Acell_width)]
+                grid.clip_data = clip_image(self.words,crop_frame)
 
-                if len(self.words) >= 1:
-                    grid.data['R'] += int(self.visual_scale * (float(grid.clip_data[self.words[0]])-self.visual_threshold))
-                    R_value = grid.data['R']                    
+                if self.words[0] in grid.clip_data:
+                    grid.color_data[0] += float(grid.clip_data[self.words[0]])
+                if len(self.words) > 1 and self.words[1] in grid.clip_data:
+                    grid.color_data[1] += float(grid.clip_data[self.words[1]])
 
-                if len(self.words) >= 2:
-                    grid.data['G'] += int(self.visual_scale * (float(grid.clip_data[self.words[1]])-self.visual_threshold))
-                    G_value = grid.data['G']
+                # Find the min and max RGB values for normalization
+                minRGB = np.minimum(minRGB, grid.color_data)
+                maxRGB = np.maximum(maxRGB, grid.color_data)
 
-                grid.rect.color = colorTuple(R_value, G_value, 150, 150)
+            # Normalize and set colors
+            scale = maxRGB - minRGB
+            scale[scale == 0] = 1  # Avoid division by zero
+            
+            for grid in self.Agrid:
+                if np.any(grid.color_data > 0):  # Only normalize grids that have non-zero color data
+                    normalized_color_data = (grid.color_data - minRGB) / scale * 255
+                    grid.rect.color = colorTuple(normalized_color_data[0], normalized_color_data[1], 0, 150)  # Assume alpha is 150 for visualization
+
         self.frame_reading += 1
+       
 
     def advance_video_frame(self):
         self.person_points.clear()

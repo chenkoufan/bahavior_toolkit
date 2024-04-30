@@ -1,5 +1,5 @@
 from KFilter import *
-from KApp_new import KGridPixel
+from KGrid import *
 
 #todo
 class KFilterFrequency(KFilter):

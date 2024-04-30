@@ -12,7 +12,7 @@ model = YOLO("yolov8n.pt")
 colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
 
 tracker = Tracker()
-detection_threshold = 0.5 # 可能性0.5以上的算作人
+detection_threshold = 0.3 # 可能性0.5以上的算作人
 person_class_id = 0 # 人的id,做分类,其实好像是除了视频路径外的唯一的东西
 
 
@@ -36,7 +36,8 @@ def yolo_process_frame2(frame_data : 'KVideoFrame', words=['standing','walking']
                 dy = y2 - y1
                 dx = x2 - x1
                 ratio = dy/dx
-                body_correction = ratio > 2 and ratio < 5  
+                # body_correction = ratio > 2 and ratio < 5  
+                body_correction = True
                 if body_correction:
                     detections.append([x1, y1, x2, y2, score])
                     tracker.update(frame, detections) # 更新tracker,这样就可以跟踪人了
@@ -48,8 +49,16 @@ def yolo_process_frame2(frame_data : 'KVideoFrame', words=['standing','walking']
             dx = x2 - x1            
             track_id = track.track_id # 保证每个track都有一个id,这个id是唯一的,所以可以跟踪人,获取他的id,然后画框
 
-            #截取出画面
-            crop_frame = frame[int(y1):int(y2), int(x1):int(x2)]
+            cx = (x1+x2)/2
+            cy = (y1+y2)/2
+            sz = max(dx,dy)
+
+            xx0 = int(cx-sz/2)
+            xx1 = int(cx+sz/2)
+            yy0 = int(cy-sz/2)
+            yy1 = int(cy+sz/2)
+
+            crop_frame = frame[yy0:yy1, xx0:xx1]
             
             clip_data = clip_image(words,crop_frame) # 对这个人clip计算words-value,也可以用grid来计算
             for key in clip_data.keys():

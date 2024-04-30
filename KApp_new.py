@@ -8,6 +8,7 @@ from imgui.integrations.pyglet import create_renderer
 import os
 import cv2
 import time
+import numpy as np
 
 from KWindow import * # 管理窗口
 from KVideo import * # 视频处理,包括导入完整视频,截取片段,视频内容处理(重点部分)
@@ -20,7 +21,7 @@ from clipImage_function import clip_image
 
 
 # read_file_path = 'data/test.mp4'
-read_file_path = 'data/franny426.mp4'
+read_file_path = 'data/original_cropped.mp4'
 window_width = 900
 window_height = 500
 # scale_factor = 0.8
@@ -29,6 +30,26 @@ scale_factor = 0.36
 start_x = 20
 start_y = 20
 
+def clamp(r, minv, maxv):
+   #return max(min(r,maxv), minv)
+
+    if r<minv:
+        return minv
+    if r>maxv:
+        return maxv
+    
+    return r
+
+
+
+def colorComponent(r:float)->int:
+    return clamp(int(r), 0, 255)
+
+def colorTuple(r,g,b,a):
+    return (colorComponent(r), colorComponent(g), colorComponent(b), colorComponent(a))
+
+
+
 class KGridPixel:
     cols = 40
     rows = 20
@@ -36,12 +57,23 @@ class KGridPixel:
         self.x = x
         self.y = y
         self.rect : shapes.Rectangle = None
-        self.data = {'R':0, 'G':0, 'B':0, 'A':0} # 用来存储每个矩形的数据,控制显示颜色等,这里是颜色的数据,可以改成其他数据
+        self.data = np.array([0.0,0.0,0.0,0.0]) # 用来存储每个矩形的数据,控制显示颜色等,这里是颜色的数据,可以改成其他数据
         self.active = False
         self.num = 0
 
+    @property
+    def RGBAtuple(self):
+        return colorTuple(self.data[0], self.data[1], self.data[2], self.data[3])
+    
+
+    def getData(self, use_mean):
+        if use_mean and self.num>0:
+            return self.data/self.num
+        return self.data
+
+
 class AGridPixel(KGridPixel):
-    cols = 8
+    cols = 4
     rows = 4
     def __init__(self, x:int, y:int):
         super().__init__(x,y)
@@ -57,7 +89,7 @@ class KApp:
 
     def __init__(self):
         super().__init__()
-        self.words = ['chatting',]
+        self.words = ['eating',]
         self.batch_grid = pyglet.graphics.Batch()
         self.batch_Agrid = pyglet.graphics.Batch()
         self.window : KWindow = KWindow(window_width, window_height, self)
@@ -171,10 +203,13 @@ class KApp:
         if (imgui.button("Create Map")):
             self.current_video = self.video.get_video(self.video_edit_start_time_sec, self.video_edit_end_time_sec, self.video_skip_frames) # KVideoNew content, 从video中获取片段, get the clip from the video
             self.current_video.end_time_sec = self.video_edit_end_time_sec
-            self.current_video.start_time_sec = self.video_edit_start_time_sec            
+            self.current_video.start_time_sec = self.video_edit_start_time_sec
+            if self.show_attribute or self.show_clip:
+                self.words = self.filters[self.current_filter_index].words
             if self.show_attribute != True:
                 self.current_video.apply_yolo(self.words) # 新加的 current_video.tracker_data里就是yolo结果
             if self.show_attribute:
+                self.init_Agrid()
                 self.current_video.apply_clip(self.words, self.Agrid)
 
         if (imgui.button("Reset")):
@@ -185,7 +220,7 @@ class KApp:
         self.filters[self.current_filter_index].update_ui(self) # 这里可以改frames内容,然后可视化,现在用了下面的方法分类,不过word_list用这个显示
         imgui.end()
 
-        if self.current_video is not None : 
+        if self.current_video is not None: 
         # 就是filter里面的第二个
             self.data_visualisation() # 显示数据,函数都写在后面了
 
@@ -202,6 +237,7 @@ class KApp:
         self.frame_reading = 0
         self.background.draw()
         
+
 
     def advance_yolo_frame(self,R_value=0,G_value=0):
                   
@@ -228,44 +264,68 @@ class KApp:
                 self.grid[grid_num].num += 1
 
                 if self.show_frequency:
-                    self.grid[grid_num].data['G'] += self.visual_scale # 这里相当于是最简单的cumulative sum                    
-                    R_value = self.grid[grid_num].data['G']
-                    if R_value > 255: R_value = 255
-                    if R_value < 0: R_value = 0
-                    self.grid[grid_num].rect.color = (int(R_value), 0, 0, 150)
+                    self.grid[grid_num].data[0] += self.visual_scale # 这里相当于是最简单的cumulative sum                    
+    
 
                 elif self.show_clip:
                     # clip data
                     if len(self.words) >= 1:                        
-                        R_value =  self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[0],i,'R')
-                        if R_value > 255:
-                            R_value = 255
-                        
+                        self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[0],i,0)     
                         
                     if len(self.words) >= 2:
-                        G_value= self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[1],i,'G')
-                        if G_value > 255:
-                            G_value = 255
-                    
-                    self.grid[grid_num].rect.color = (R_value, G_value, 0, 150)                
+                        self.clip_on_grid(current_frame.clip_datas,grid_num,self.words[1],i,1)
+
+        minRGB = None #np.zeros(4)
+        maxRGB = None  #np.zeros(4)
+
+        use_mean = (self.filters[self.current_filter_index].accu_mean == 1)
+
+        for i,g in enumerate(self.grid):   
+            if g.num==0:
+                continue
+
+            d = g.getData(use_mean)
+
+            if minRGB is None: 
+                minRGB = d.copy()
+                maxRGB = d.copy()
+            else:
+                for j in range(4):
+                    minRGB[j] = min(minRGB[j], d[j])
+                    maxRGB[j] = max(maxRGB[j], d[j])
+
+        if minRGB is None:
+            return
+        
+        scale = maxRGB-minRGB
+
+        for j in range(4):
+            if scale[j]==0.0:
+                scale[j] = 1.0
+
+        for i,g in enumerate(self.grid):
+            if g.num == 0:
+                g.rect.color = colorTuple(0, 0, 0, 0)                
+            else:
+                d = g.getData(use_mean)
+
+
+                R_value = 255*(d[0] - minRGB[0])/scale[0]
+                G_value = 255*(d[1] - minRGB[1])/scale[1]
+                g.rect.color = colorTuple(R_value, G_value, 0, 150)                
 
         self.frame_reading += 1
 
     def clip_on_grid(self,clip_data,grid_num,word,i,RGB):
-        if self.grid[grid_num].data[RGB] < 255:
-            word0_data = clip_data[word][i] # 这里是clipdata的值
-            cali_data = int(self.visual_scale * (float(word0_data)-self.visual_threshold))
-            self.grid[grid_num].data[RGB] += cali_data # 这里是累加调整后的clipdata的值
-
-            if self.filters[self.current_filter_index].accu_mean == 0: # 0是累加,1是平均,0 for accu, 1 for mean
-                RGB_value = self.grid[grid_num].data[RGB]
-            elif self.filters[self.current_filter_index].accu_mean == 1:
-                RGB_value = int(self.grid[grid_num].data[RGB]/self.grid[grid_num].num)
-        elif RGB_value < 0:
-            RGB_value = 0  
-        else:
-            RGB_value = 255
+        RGB_value = self.grid[grid_num].data[RGB]
         
+        
+        word0_data = clip_data[word][i] # 这里是clipdata的值
+        cali_data = float(word0_data)
+        self.grid[grid_num].data[RGB] += cali_data # 这里是累加调整后的clipdata的值
+
+
+
         return RGB_value
 
     def advance_clip_attribute_frame(self,R_value=0,G_value=0):
@@ -278,23 +338,13 @@ class KApp:
 
                 if len(self.words) >= 1:
                     grid.data['R'] += int(self.visual_scale * (float(grid.clip_data[self.words[0]])-self.visual_threshold))
-                    if grid.data['R'] > 255:
-                        R_value = 255
-                    elif grid.data['R'] < 0:
-                        R_value = 0
-                    else:
-                        R_value = grid.data['R']                    
+                    R_value = grid.data['R']                    
 
                 if len(self.words) >= 2:
                     grid.data['G'] += int(self.visual_scale * (float(grid.clip_data[self.words[1]])-self.visual_threshold))
-                    if grid.data['G'] > 255:
-                        G_value = 255
-                    elif grid.data['G'] < 0:
-                        G_value = 0
-                    else:
-                        G_value = grid.data['G']
+                    G_value = grid.data['G']
 
-                grid.rect.color = (R_value, G_value, 150, 150)
+                grid.rect.color = colorTuple(R_value, G_value, 150, 150)
         self.frame_reading += 1
 
     def advance_video_frame(self):

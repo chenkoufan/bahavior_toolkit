@@ -3,7 +3,7 @@ import cv2
 from interface import *
 from yolo_detect import yolo_process_frame
 
-video_path = os.path.join('.', 'data', 'test.MP4')
+video_path = os.path.join('.', 'data', 'franny426.mp4')
 video_out_path = os.path.join('.','outcome', 'test.mp4')
 # crop_image_path = 'outcome/crop_scale'
 

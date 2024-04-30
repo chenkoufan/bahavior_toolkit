@@ -9,7 +9,7 @@ from tracker import Tracker
 from clipImage_function import clip_image
 from clip_visualization import clip_visualize
 
-video_path = os.path.join('.', 'data', 'olin_original.MP4')
+video_path = os.path.join('.', 'data', 'franny426.MP4')
 video_out_path = os.path.join('.','outcome', 'test.mp4')
 # crop_image_path = 'outcome/crop_scale'
 

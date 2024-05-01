@@ -3,6 +3,7 @@ from pyglet import shapes
 from Kcolor_normalize import *
 from pyglet.text import Label
 
+
 class KGridPixel:
     cols = 40
     rows = 20
@@ -26,13 +27,23 @@ class KGridPixel:
 
 
 class AGridPixel(KGridPixel):
-    cols = 4
-    rows = 4
-    def __init__(self, x:int, y:int):
+    cols = 8
+    rows = 6
+    def __init__(self, x:int, y:int, frame_x:int, frame_y:int, frame_width:int, frame_height:int):
         super().__init__(x,y)
+        
+        self.frame_x = frame_x
+        self.frame_y = frame_y
+        self.frame_width = frame_width
+        self.frame_height = frame_height
+        
+
         self.clip_data = {}
         self.label = Label('',
                            font_name='Times New Roman',
-                           font_size=12,
+                           font_size=6,
                            x=self.x, y=self.y,
                            anchor_x='left', anchor_y='bottom')
+        
+    def crop_image(self, frame:np.ndarray):
+        return frame[int(self.frame_y):int(self.frame_y+self.frame_height), int(self.frame_x):int(self.frame_x+self.frame_width)]

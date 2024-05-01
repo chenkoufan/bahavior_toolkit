@@ -2,6 +2,7 @@ from typing import List
 import os
 import cv2
 
+from KGrid import *
 from K_yolo_detect_frame_positon import yolo_process_frame2, process_clip
 
 class KYoloData:
@@ -37,14 +38,25 @@ class KVideoNew:
             print('processing frame:',n)
             yolo_process_frame2(frame,words) # self : 'KVideoFrame', 这一步把数据存进video.tracker_data里面,原画面不变,
 
-    def apply_clip(self,words, Agrids):
+    def apply_clip(self,words, Agrids : List[AGridPixel]):
+
+        # temp_folder = r"D:\document picture download\Desktop\TEMP"
         for n in range(len(self.frames)):
             frame = self.frames[n]
-            print('processing frame:',n)
+            # print('processing frame:',n)
             for grid in Agrids:
-                crop_frame = frame.frame_image[int(grid.y):int(grid.y+grid.Acell_height), int(grid.x):int(grid.x+grid.Acell_width)]
+                crop_frame = grid.crop_image(frame.frame_image)
+
+                # frame.clip_attribute = process_clip(crop_frame,words,n)
                 grid.clip_data = process_clip(crop_frame,words,n)
-        
+
+                # print to detect
+                # fname = f'{n}_{grid.frame_x}_{grid.frame_y}'
+                # for key in grid.clip_data.keys():
+                #     fname += f'_{key}_{grid.clip_data[key]}'
+
+                # fname = os.path.join(temp_folder, f'{fname}.jpg')
+                # cv2.imwrite(fname, crop_frame)
 
     def add_frame(self, frame:KVideoFrame):
         self.frames.append(frame)

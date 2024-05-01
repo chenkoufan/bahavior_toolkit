@@ -9,6 +9,7 @@ import os
 import cv2
 import time
 import numpy as np
+import math
 
 from KWindow import * # 管理窗口
 from KVideo import * # 视频处理,包括导入完整视频,截取片段,视频内容处理(重点部分)
@@ -23,7 +24,8 @@ from Kcolor_normalize import *
 
 # read_file_path = 'data/test.mp4'
 read_file_path = 'data/franny426.mp4'
-window_width = 900
+# read_file_path = 'data/olin_original.MP4'
+window_width = 950
 window_height = 500
 # scale_factor = 0.8
 scale_factor = 0.36
@@ -94,6 +96,9 @@ class KApp:
         AGridPixel.Acell_height = self.Acell_height
         AGridPixel.Acell_width = self.Acell_width
 
+        cell_frame_height = self.video_height / AGridPixel.rows
+        cell_frame_width = self.video_width / AGridPixel.cols
+
         self.Agrid : List[AGridPixel] = []
         
         self.background = shapes.Rectangle(start_x, start_y, self.video_width*scale_factor, self.video_height*scale_factor, color=(0, 50, 150, 150)) # 底图
@@ -101,9 +106,35 @@ class KApp:
         for row in range(AGridPixel.rows):
             for col in range(AGridPixel.cols):
                 # 计算每个矩形的左下角坐标
+                
                 corner_x = start_x + col * self.Acell_width
                 corner_y = start_y + row * self.Acell_height
-                grid_pixel = AGridPixel(corner_x, corner_y)
+
+                frame_padding = 5
+
+                frame_row = AGridPixel.rows - 1 - row
+
+                frame_x0 = col * cell_frame_width - frame_padding
+                frame_y0 = frame_row * cell_frame_height - frame_padding
+                frame_x1 = (col + 1) * cell_frame_width + frame_padding
+                frame_y1 = (frame_row + 1) * cell_frame_height + frame_padding
+                
+                frame_x0 = max(0, frame_x0)
+                frame_y0 = max(0, frame_y0)
+
+                frame_x1 = min(self.video_width, frame_x1)
+                frame_y1 = min(self.video_height, frame_y1)
+
+                frame_w = frame_x1 - frame_x0
+                frame_h = frame_y1 - frame_y0
+
+                grid_pixel = AGridPixel(
+                    corner_x, corner_y,
+                    int(frame_x0),
+                    int(frame_y0),
+                    int(frame_w),
+                    int(frame_h)
+                    )
                 grid_pixel.rect = shapes.Rectangle(corner_x, corner_y, self.Acell_width, self.Acell_height, color=(0, 50, 150, 150), batch=self.batch_Agrid)
                 self.Agrid.append(grid_pixel)
 
@@ -121,9 +152,10 @@ class KApp:
         imgui.text(" Main Menu")
 
         if imgui.button("Load Video"):
-            this_folder = os.path.dirname(os.path.abspath(__file__))
-            file = os.path.join(this_folder, read_file_path) # 可加
-            self.video = KVideo(file) # KVideo content 这里开始video变量进来, the video variable comes in
+            pass # 默认自动加载
+        this_folder = os.path.dirname(os.path.abspath(__file__))
+        file = os.path.join(this_folder, read_file_path) # 可加
+        self.video = KVideo(file) # KVideo content 这里开始video变量进来, the video variable comes in
 
         #number input for start time
         #number input for end time
@@ -157,7 +189,7 @@ class KApp:
 
             if self.show_attribute or self.show_clip:
                 self.words = self.filters[self.current_filter_index].words # 自定义words
-            if self.show_attribute != True:
+            if self.show_frequency or self.show_clip:
                 self.current_video.apply_yolo(self.words) # 新加的 current_video.tracker_data里就是yolo结果
             if self.show_attribute:
                 self.init_Agrid() # 因为不想在reset里全部重来
@@ -166,8 +198,8 @@ class KApp:
         if (imgui.button("Reset")):
             self.reset()
 
-        changed, self.visual_threshold = imgui.input_float("Threshold", self.visual_threshold)
-        changed, self.visual_scale = imgui.input_float("Scale", self.visual_scale)
+        # changed, self.visual_threshold = imgui.input_float("Threshold", self.visual_threshold)
+        # changed, self.visual_scale = imgui.input_float("Scale", self.visual_scale)
         self.filters[self.current_filter_index].update_ui(self) # 这里可以改frames内容,然后可视化,现在用了下面的方法分类,不过word_list用这个显示
         imgui.end()
 
@@ -274,35 +306,39 @@ class KApp:
 
     def advance_clip_attribute_frame(self,R_value=0,G_value=0):
         # #attribute    
-        if self.frame_reading < self.current_video.get_frame_count():
-            current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
+        # if self.frame_reading < self.current_video.get_frame_count():
+        # current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
 
-            minRGB = np.array([float('inf'), float('inf'), 0, 0])
-            maxRGB = np.array([float('-inf'), float('-inf'), 0, 0])
+        minRGB = np.array([float('inf'), float('inf'), 0, 0])
+        maxRGB = np.array([float('-inf'), float('-inf'), 0, 0])
 
-            for grid in self.Agrid:
-                crop_frame = current_frame.frame_image[int(grid.y):int(grid.y+self.Acell_height), int(grid.x):int(grid.x+self.Acell_width)]
-                grid.clip_data = clip_image(self.words,crop_frame)
+        for grid in self.Agrid:
+            if self.words[0] in grid.clip_data:
+                grid.color_data[0] += float(grid.clip_data[self.words[0]]) ** (3)
+            if len(self.words) > 1 and self.words[1] in grid.clip_data:
+                grid.color_data[1] += float(grid.clip_data[self.words[1]]) ** (3)
 
-                if self.words[0] in grid.clip_data:
-                    grid.color_data[0] += float(grid.clip_data[self.words[0]])
-                if len(self.words) > 1 and self.words[1] in grid.clip_data:
-                    grid.color_data[1] += float(grid.clip_data[self.words[1]])
+            # Find the min and max RGB values for normalization
+            minRGB = np.minimum(minRGB, grid.color_data)
+            maxRGB = np.maximum(maxRGB, grid.color_data)
 
-                # Find the min and max RGB values for normalization
-                minRGB = np.minimum(minRGB, grid.color_data)
-                maxRGB = np.maximum(maxRGB, grid.color_data)
+        # Normalize and set colors
+        scale = maxRGB - minRGB
+        scale[scale == 0] = 1  # Avoid division by zero
+        # if scale[0] == 0:
+        #     scale[0] = 1
+        
+        for grid in self.Agrid:
+            if np.any(grid.color_data > 0):  # Only normalize grids that have non-zero color data
+                R_value = 255*(grid.color_data[0] - minRGB[0])/scale[0]
+                G_value = 255*(grid.color_data[1] - minRGB[1])/scale[1]
+                grid.rect.color = colorTuple(int(R_value), int(G_value), 0, 150)
 
-            # Normalize and set colors
-            scale = maxRGB - minRGB
-            scale[scale == 0] = 1  # Avoid division by zero
-            
-            for grid in self.Agrid:
-                if np.any(grid.color_data > 0):  # Only normalize grids that have non-zero color data
-                    normalized_color_data = (grid.color_data - minRGB) / scale * 255
-                    grid.rect.color = colorTuple(normalized_color_data[0], normalized_color_data[1], 0, 150)  # Assume alpha is 150 for visualization
+                # normalized_color_data = (grid.color_data - minRGB) / scale * 255
+                # grid.rect.color = colorTuple(normalized_color_data[0], normalized_color_data[1], 0, 150)  # Assume alpha is 150 for visualization
 
-        self.frame_reading += 1       
+        # 现在不用渐变效果,之后可以把数值储存到frame里,然后用来显示渐变
+        # self.frame_reading += 1
 
     def advance_video_frame(self):
         self.person_points.clear()
@@ -343,6 +379,16 @@ class KApp:
                 self.batch_grid.draw()
             elif self.show_attribute:
                 self.batch_Agrid.draw()
+
+                for grid in self.Agrid:
+                    show_value = ''
+                    show_values = grid.clip_data.values()
+                    for value in show_values:
+                        show_value += value + ' '
+                    grid.label.text = show_value
+                    grid.label.x = grid.x
+                    grid.label.y = grid.y
+                    grid.label.draw()
 
 if __name__ == '__main__':
     app = KApp()

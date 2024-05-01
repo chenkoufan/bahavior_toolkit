@@ -58,6 +58,17 @@ def yolo_process_frame2(frame_data : 'KVideoFrame', words=['standing','walking']
             yy0 = int(cy-sz/2)
             yy1 = int(cy+sz/2)
 
+            xx0 = max(0,xx0)
+            xx1 = min(frame.shape[1],xx1)
+            yy0 = max(0,yy0)
+            yy1 = min(frame.shape[0],yy1)
+
+            ww = xx1-xx0
+            hh = yy1-yy0
+
+            if ww<=0 or hh<=0:
+                continue
+
             crop_frame = frame[yy0:yy1, xx0:xx1]
             
             clip_data = clip_image(words,crop_frame) # 对这个人clip计算words-value,也可以用grid来计算

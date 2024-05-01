@@ -309,7 +309,8 @@ class KApp:
         # if self.frame_reading < self.current_video.get_frame_count():
         # current_frame : KVideoFrame = self.current_video.frames[self.frame_reading]
 
-        minRGB = np.array([float('inf'), float('inf'), 0, 0])
+        # minRGB = np.array([float('inf'), float('inf'), 0, 0])
+        minRGB = np.array([float('inf'), 1.00, 0, 0])
         maxRGB = np.array([float('-inf'), float('-inf'), 0, 0])
 
         for grid in self.Agrid:
@@ -332,7 +333,8 @@ class KApp:
             if np.any(grid.color_data > 0):  # Only normalize grids that have non-zero color data
                 R_value = 255*(grid.color_data[0] - minRGB[0])/scale[0]
                 G_value = 255*(grid.color_data[1] - minRGB[1])/scale[1]
-                grid.rect.color = colorTuple(int(R_value), int(G_value), 0, 150)
+                A_value = scale_color_value(R_value, 0, 255, 50, 150)
+                grid.rect.color = colorTuple(int(R_value), int(G_value), 0, int(A_value))
 
                 # normalized_color_data = (grid.color_data - minRGB) / scale * 255
                 # grid.rect.color = colorTuple(normalized_color_data[0], normalized_color_data[1], 0, 150)  # Assume alpha is 150 for visualization
@@ -389,6 +391,7 @@ class KApp:
                     grid.label.x = grid.x
                     grid.label.y = grid.y
                     grid.label.draw()
+
 
 if __name__ == '__main__':
     app = KApp()

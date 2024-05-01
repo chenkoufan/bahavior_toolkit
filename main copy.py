@@ -100,7 +100,7 @@ while ret:
 
             if body_correction: # visualization
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (colors[track_id % len(colors)]), 3) # 画框
-                # cv2.putText(frame, str(track_id)+str(clip_data), (int(x1), int(y1)), 0, 5e-3 * 150, (255, 0, 0), 2) # 显示dict内容
+                cv2.putText(frame, str(track_id)+str(clip_data), (int(x1), int(y1)), 0, 5e-3 * 150, (255, 0, 0), 2) # 显示dict内容
                 clip_visualize(words, tracker,track_id, frame, x1, y1, x2, y2)         
             
             mid_point = (int((x1 + x2) / 2), int(y2))

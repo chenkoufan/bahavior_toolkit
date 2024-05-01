@@ -43,7 +43,7 @@ class KVideoNew:
         # temp_folder = r"D:\document picture download\Desktop\TEMP"
         for n in range(len(self.frames)):
             frame = self.frames[n]
-            # print('processing frame:',n)
+            print('processing frame:',n)
             for grid in Agrids:
                 crop_frame = grid.crop_image(frame.frame_image)
 

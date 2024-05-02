@@ -23,8 +23,8 @@ from Kcolor_normalize import *
 
 
 # read_file_path = 'data/test.mp4'
-read_file_path = 'data/franny426.mp4'
-# read_file_path = 'data/olin_original.MP4'
+# read_file_path = 'data/franny426.mp4'
+read_file_path = 'data/olin_original.MP4'
 window_width = 950
 window_height = 500
 # scale_factor = 0.8
